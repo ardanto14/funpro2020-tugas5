@@ -10,6 +10,7 @@ import Data.Char
 import Text.Parsec
 import Text.Parsec.String
 import qualified Text.PrettyPrint as PP
+import Data.Maybe
 
 data Term = Var String
           | Application Term Term
@@ -152,6 +153,25 @@ myparse str = case (parse lambdaTerm "" str) of
 test = myparse "\\z.(\\f.\\x.fzx)(\\y.y)"
 pair = myparse "\\x.\\y.\\z.zxy"
 
+preParse :: [Char] -> [Char]
+preParse str = foldr convertToLambda [] str
+
+convertToLambda :: Char -> [Char] -> [Char]
+convertToLambda chr acc | chr `elem` ['0'..'9'] = ['('] ++ prettyprint (church (read [chr] :: Integer)) ++ [')'] ++ acc
+    | chr == '+' = "(\\w.\\y.\\x.y(wyx))" ++ acc
+    | chr == '*' = "(\\w.\\y.\\x.w(yx))" ++ acc
+    | otherwise = [chr] ++ acc
+
+churchToInt :: String -> Integer
+churchToInt str = fromMaybe (-1) (churchTranslator (myparse str))
+
+churchTranslator :: Term -> Maybe Integer
+churchTranslator (Abstraction s (Abstraction z apps)) = go apps
+    where
+        go (Var x) | x == z = Just 0
+        go (Application (Var f) e) | f == s = (+ 1) <$> go e
+        go _ = Nothing
+churchTranslator _ = Nothing
 
 -------------------------------------- PRETTY PRINT --------------------------------------
 ppr :: Term -> PP.Doc
@@ -174,9 +194,12 @@ prettyprint term = PP.render (ppr term)
 loopPrinter = do 
     putStr "> "
     inputStr <- readLn 
-    let parsedString = myparse inputStr  
+    let beforeParsed = preParse inputStr
+    putStrLn("Before parsed " ++ beforeParsed)
+    let parsedString = myparse beforeParsed  
     putStrLn ("Normal form of " ++ inputStr ++ ": ")
     putStrLn ((reduceNF parsedString)!!((length (reduceNF parsedString))-1))
+    putStrLn ("In Integer : " ++ show ( churchToInt ((reduceNF parsedString)!!((length (reduceNF parsedString))-1))))
     loopPrinter
 
 main :: IO ()
