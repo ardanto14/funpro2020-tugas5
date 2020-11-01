@@ -64,7 +64,7 @@ A simple lambda calculus interpreter
 ### 3) Extra feature (Fitur tambahan)
 by
 Ardanto Finkan Septa - 1706039736
-
+Sebagai penyelesaian tugas 5 Pemfung 2020 CSUI
 - mengubah bentuk numerik ke bentuk church numeralnya
 ```
 > "2"
@@ -99,11 +99,26 @@ In Integer : 4
 ```
 
 - operator kali
-"belum berhasil"
+```
+> "2*3"
+Before parsed \f.((\f.\x.f(fx)))(((\f.\x.f(f(fx))))f)
+Normal form of 2*3: 
+\f.\b.f(f(f(f(f(fb)))))
+In Integer : 6
+```
+
+- gabungan
+```
+> "(\\f.\\x.f(fx))*3" 
+Before parsed \f.((\f.\x.f(fx)))(((\f.\x.f(f(fx))))f)
+Normal form of (\f.\x.f(fx))*3: 
+\f.\b.f(f(f(f(f(fb)))))
+In Integer : 6
+```
 
 
 ##### Perubahan yang dilakukan
-Pada kode tersebut, sebuah input akan di parse dan dijadikan sebuah Term. Sebelum melakukan parse, input tersebut dilakukan sebuah operasi "preParse" dimana pada tahap ini dilakukan perubahan string input. Jika dia adalah operator "+" maka ubah ke bentuk (\\w.\\y.\\x.y(wyx)), jika dia adalah elemen dari 0-9, maka ubah ke bentuk churchnya. Berikut adalah kode untuk mengubah bentuk numerik ke church numeralnya
+Di interpreter ini, sebuah input akan di parse dan dijadikan sebuah Term. Sebelum melakukan parse, input tersebut dilakukan sebuah operasi "preParse" dimana pada tahap ini dilakukan perubahan string input. Jika dia adalah operator "+" maka ubah ke bentuk (\\w.\\y.\\x.y(wyx)), jika dia adalah elemen dari 0-9, maka ubah ke bentuk churchnya. Berikut adalah kode untuk mengubah bentuk numerik ke church numeralnya
 ```
 church :: Integer -> Term
 church 0 = myparse "\\f.\\x.x"
@@ -127,16 +142,33 @@ loopPrinter = do
     loopPrinter
 ```
 
-Disini dilakukan folding pada string untuk mengecek apakah string tersebut adalah operator atau bentuk numerik. Jika iya, maka string tersebut akan diganti dengan bentuk churchnya,
+##### Kode yang ditambahkan
+Untuk melakukan PreParsing, dilakukan folding pada string untuk mengecek apakah string tersebut adalah operator atau bentuk numerik. Jika iya, maka string tersebut akan diganti dengan bentuk churchnya. Disini ada yang spesial dengan * karena interpreter bawaan tidak bisa menanganinya jadi saya menggunanakan fungsi mult untuk menngalikan. Tambahan fungsi charFound untuk mengecek apakah ada * di fungsi, sertia fungsi split untuk membagi.
 ```
 preParse :: [Char] -> [Char]
-preParse str = foldr convertToLambda [] str
+preParse str = if charFound '*' str then preParse (mult (splitted!!0) (splitted!!1)) else foldr convertToLambda [] str
+    where
+        splitted = split str
 
 convertToLambda :: Char -> [Char] -> [Char]
 convertToLambda chr acc | chr `elem` ['0'..'9'] = ['('] ++ prettyprint (church (read [chr] :: Integer)) ++ [')'] ++ acc
     | chr == '+' = "(\\w.\\y.\\x.y(wyx))" ++ acc
-    | chr == '*' = "(\\w.\\y.\\x.w(yx))" ++ acc
     | otherwise = [chr] ++ acc
+
+mult :: String -> String -> String
+mult str1 str2 = "\\f.(" ++ (str1) ++ ")((" ++ (str2) ++")f)"
+
+charFound :: Char -> String -> Bool
+charFound _ "" = False
+charFound c (x:xs)
+    | c == x = True
+    | otherwise = charFound c xs
+
+split :: String -> [String]
+split [] = [""]
+split (c:cs) | c == '*'  = "" : rest
+             | otherwise = (c : head rest) : tail rest
+    where rest = split cs
 ```
 
 Untuk mengubah bentuk church ke bentuk numerik, dapat digunakan fungsi berikut, dimana churchTranslator akan mengeluarkan nilai Integer dari sebuah Term. Jika tidak bisa, churchTranslator akan mengeluarkan nothing, dimana nanti akan diubah ke -1 di churchToInt
@@ -152,3 +184,7 @@ churchTranslator (Abstraction s (Abstraction z apps)) = go apps
         go _ = Nothing
 churchTranslator _ = Nothing
 ```
+
+Batasan Program
+- Hanya boleh satu operator saja (tidak bisa menangani contoh 2*2+3)
+- Interpreternya cukup aneh dikarenakan fungsi \\f.\\x.fx jadi direduksi ke \f.f di hasil akhirnya. Jadi disini nilai 1 di hasil akhir tidak bisa terbaca karena berbentuk \f.f

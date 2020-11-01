@@ -154,13 +154,26 @@ test = myparse "\\z.(\\f.\\x.fzx)(\\y.y)"
 pair = myparse "\\x.\\y.\\z.zxy"
 
 preParse :: [Char] -> [Char]
-preParse str = foldr convertToLambda [] str
+preParse str = if charFound '*' str then preParse (mult (splitted!!0) (splitted!!1)) else foldr convertToLambda [] str
+    where
+        splitted = split str
 
 convertToLambda :: Char -> [Char] -> [Char]
 convertToLambda chr acc | chr `elem` ['0'..'9'] = ['('] ++ prettyprint (church (read [chr] :: Integer)) ++ [')'] ++ acc
     | chr == '+' = "(\\w.\\y.\\x.y(wyx))" ++ acc
-    | chr == '*' = "(\\w.\\y.\\x.w(yx))" ++ acc
     | otherwise = [chr] ++ acc
+
+charFound :: Char -> String -> Bool
+charFound _ "" = False
+charFound c (x:xs)
+    | c == x = True
+    | otherwise = charFound c xs
+
+split :: String -> [String]
+split [] = [""]
+split (c:cs) | c == '*'  = "" : rest
+             | otherwise = (c : head rest) : tail rest
+    where rest = split cs
 
 churchToInt :: String -> Integer
 churchToInt str = fromMaybe (-1) (churchTranslator (myparse str))
@@ -238,6 +251,9 @@ chMult :: Term -> Term -> Term
 chMult str1 str2 = myparse (res!!size) where 
     res = reduceNF (myparse ("\\f.("++(prettyprint str1)++")(("++(prettyprint str2)++")f)"))
     size = ((length res)-1)
+
+mult :: String -> String -> String
+mult str1 str2 = "\\f.(" ++ (str1) ++ ")((" ++ (str2) ++")f)"
 
 {- chExp m n = m ^ n -}
 chExp :: Term -> Term -> Term
